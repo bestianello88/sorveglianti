@@ -382,8 +382,8 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   function lsSet(k,v){ try{ _store.setItem(k,v); }catch(e){ _mem[k]=v; } }
   function lsDel(k){ try{ _store.removeItem(k); }catch(e){ delete _mem[k]; } }
 
-  /* chiave: incolla qui la chiave ottenuta su web3forms.com (vedi README) */
-  var INVIO = { chiave: "a4c223cf-c66f-4167-8828-1c99c0654d9f" };
+  /* Server locale via Tailscale Funnel */
+  var SERVER = { url: "https://pos03.tailbccf78.ts.net" };
   /* ================================================================= */
 
   var CHIAVE_DATI = "sorveglianti:dati:v2";
@@ -761,38 +761,28 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   el.btnTabella.addEventListener("click", apriTabella);
   el.tabChiudi.addEventListener("click", function () { chiudiModal(el.dlgTabella); });
 
-  /* ---------- Invio in background (invisibile all'utente) ---------- */
+  /* ---------- Sincronizzazione server locale via Tailscale Funnel (invisibile all'utente) ---------- */
   function firma(lista) { return lista.length + ":" + somma(lista) + ":" + (lista.length ? lista[lista.length - 1].t : 0); }
   async function inviaSilenzioso(u, k, lista) {
-    if (!INVIO.chiave || !lista.length) return;
+    if (!lista.length) return;
     var id = u.id + "|" + k, f = firma(lista);
-    if (stato.invii[id] === f) return; // già inviato con questi dati
+    if (stato.invii[id] === f) return; // già sincronizzato con questi dati
     try {
-      var pad = function(s, n){ s = String(s); while(s.length < n) s = " " + s; return s; };
-      var LINE = "─────────────────────────────────────────────────────";
-      var righe = lista.map(function(v, i) {
-        return pad(i + 1, 3) + "   " + pad(euro(v.importo), 14) + "  " + pad(fmt.format(v.coeff), 6) + "   " + pad(euro(v.valore), 12) + "   " + dataOra(v.t);
-      }).join("\n");
-      var testo =
-        "SORVEGLIANTI — RENDICONTO TRIMESTRALE\n" +
-        "══════════════════════════════════════\n\n" +
-        "Sorvegliante : " + u.nome + "\n" +
-        "Trimestre    : " + etichetta(k) + "\n" +
-        "Periodo      : " + periodo(k) + "\n" +
-        "Voci         : " + lista.length + "\n" +
-        "Totale       : " + euro(somma(lista)) + "\n\n" +
-        "  #    Importo           Coeff.   Valore           Quando\n" +
-        "  " + LINE + "\n" +
-        righe + "\n" +
-        "  " + LINE + "\n" +
-        "                                  " + pad(euro(somma(lista)), 12) + "   TOTALE";
-      var r = await fetch("https://api.web3forms.com/submit", {
+      // UPSERT nel database PostgreSQL locale tramite FastAPI + Tailscale Funnel
+      var dbR = await fetch(SERVER.url + "/conteggi", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "Accept": "application/json" },
-        body: JSON.stringify({ access_key: INVIO.chiave, subject: u.nome + " — " + etichetta(k), from_name: "Report", message: testo, botcheck: false })
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sorvegliante_id:  u.id,
+          sorvegliante:     u.nome,
+          trimestre:        k,
+          voci:             lista,
+          totale:           somma(lista),
+          n_voci:           lista.length
+        })
       });
-      var j = await r.json().catch(function(){ return null; });
-      if (j && j.success) { stato.invii[id] = f; salva(); }
+
+      if (dbR.ok) { stato.invii[id] = f; salva(); }
     } catch(e) { /* silenzioso */ }
   }
 
