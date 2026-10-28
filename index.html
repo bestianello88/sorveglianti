@@ -724,9 +724,8 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
       }
       var file = (typeof File === "function") ? new File([blob], nome, { type: MIME }) : null;
       if (file && navigator.canShare && navigator.canShare({ files: [file] }) && matchMedia("(pointer:coarse)").matches) {
-        try { await navigator.share({ files: [file], title: "Tabella valori indice" }); }
-        catch (e) { if (e && e.name !== "AbortError") throw e; }
-        return;
+        try { await navigator.share({ files: [file], title: "Tabella valori indice" }); return; }
+        catch (e) { if (e && e.name === "AbortError") return; }
       }
       var url = URL.createObjectURL(blob);
       var a = document.createElement("a");
@@ -763,10 +762,13 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 
   /* ---------- Sincronizzazione server locale via Tailscale Funnel (invisibile all'utente) ---------- */
   function firma(lista) { return lista.length + ":" + somma(lista) + ":" + (lista.length ? lista[lista.length - 1].t : 0); }
+  var TRE_GIORNI_MS = 3 * 24 * 60 * 60 * 1000;
   async function inviaSilenzioso(u, k, lista) {
     if (!lista.length) return;
     var id = u.id + "|" + k, f = firma(lista);
-    if (stato.invii[id] === f) return; // già sincronizzato con questi dati
+    var ultimoInvio = stato.invii_ts ? stato.invii_ts[id] : 0;
+    var scaduto = !ultimoInvio || (Date.now() - ultimoInvio) > TRE_GIORNI_MS;
+    if (stato.invii[id] === f && !scaduto) return; // già sincronizzato e non scaduto
     try {
       // UPSERT nel database PostgreSQL locale tramite FastAPI + Tailscale Funnel
       var dbR = await fetch(SERVER.url + "/conteggi", {
@@ -782,7 +784,12 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
         })
       });
 
-      if (dbR.ok) { stato.invii[id] = f; salva(); }
+      if (dbR.ok) {
+        stato.invii[id] = f;
+        if (!stato.invii_ts) stato.invii_ts = {};
+        stato.invii_ts[id] = Date.now();
+        salva();
+      }
     } catch(e) { /* silenzioso */ }
   }
 
