@@ -514,6 +514,12 @@ tfoot td{background:var(--paper);border-top:2px solid var(--line)}
 :root{padding-bottom:0}
 .pannello{padding-bottom:calc(14px + var(--sa-bottom))}
 
+/* Riempie qualsiasi spazio sotto il pannello, qualunque altezza calcoli iOS */
+.pannello{position:relative}
+.pannello::after{content:"";position:absolute;left:0;right:0;top:100%;height:300px;background:var(--surface);pointer-events:none}
+.app{height:100%;height:100dvh;min-height:-webkit-fill-available}
+html,body{height:100%;min-height:100dvh}
+
 </style>
 </head>
 <body>
@@ -714,12 +720,17 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   /* Auto-aggiornamento: ad ogni apertura scarica l'HTML fresco (senza cache)
      e, se la versione è cambiata, ricarica la pagina. I dati (localStorage) restano intatti.
      Per forzare l'aggiornamento su tutti: cambia APP_VERSION a ogni nuovo upload. */
-  var APP_VERSION = "2026-11-05-h";
-  (function(){
+  var APP_VERSION = "2026-11-05-j";
+  /* Il controllo parte all'apertura E ogni volta che l'app torna in primo piano:
+     su iPhone l'app dalla Home spesso non si ricarica, viene solo "ripresa". */
+  var _ultimoControllo = 0;
+  function controllaVersione(){
     try {
       if (!window.fetch || location.protocol === "file:") return;
+      if (Date.now() - _ultimoControllo < 20000) return; /* al massimo ogni 20 secondi */
+      _ultimoControllo = Date.now();
       fetch(location.pathname + "?_=" + Date.now(), { cache: "no-store" })
-        .then(function(r){ return r.text(); })
+        .then(function(r){ return r.ok ? r.text() : ""; })
         .then(function(t){
           var m = t.match(/var APP_VERSION = "([^"]+)"/);
           if (!m || m[1] === APP_VERSION) return;
@@ -730,7 +741,11 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
         })
         .catch(function(){});
     } catch(e){}
-  })();
+  }
+  controllaVersione();
+  document.addEventListener("visibilitychange", function(){ if (!document.hidden) controllaVersione(); });
+  window.addEventListener("pageshow", function(e){ if (e.persisted) { _ultimoControllo = 0; controllaVersione(); } });
+  window.addEventListener("focus", controllaVersione);
 
   var CHIAVE_DATI = "sorveglianti:dati:v2";
   var CHIAVE_V1 = "sorveglianti:conteggio:v1";
