@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0E141B">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -517,7 +517,7 @@ tfoot td{background:var(--paper);border-top:2px solid var(--line)}
 /* App ancorata ai bordi reali dello schermo: niente scorrimento della pagina,
    niente spazio vuoto sotto. Scorre solo l'elenco delle voci. */
 :root{padding-top:0;padding-bottom:0}
-html,body{height:100%;overflow:hidden}
+html,body{height:100%;overflow:hidden;touch-action:manipulation}
 .app{position:fixed;top:0;bottom:0;left:0;right:0;height:auto;margin:0 auto;
   padding-top:var(--sa-top);background:var(--paper)}
 
@@ -535,6 +535,14 @@ html,body{height:100%;overflow:hidden}
     <div class="s-riga"></div>
   </div>
 </div>
+<script>
+/* iPhone: blocca lo zoom con due dita (il doppio tocco e' bloccato dal CSS touch-action) */
+(function(){
+  function no(e){ e.preventDefault(); }
+  document.addEventListener("gesturestart", no, { passive:false });
+  document.addEventListener("gesturechange", no, { passive:false });
+})();
+</script>
 <script>
 (function(){
   var s = document.getElementById("splash"); if (!s) return;
@@ -721,7 +729,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
   /* Auto-aggiornamento: ad ogni apertura scarica l'HTML fresco (senza cache)
      e, se la versione è cambiata, ricarica la pagina. I dati (localStorage) restano intatti.
      Per forzare l'aggiornamento su tutti: cambia APP_VERSION a ogni nuovo upload. */
-  var APP_VERSION = "2026-11-05-n";
+  var APP_VERSION = "2026-11-05-o";
   /* Il controllo parte all'apertura E ogni volta che l'app torna in primo piano:
      su iPhone l'app dalla Home spesso non si ricarica, viene solo "ripresa". */
   var _ultimoControllo = 0;
